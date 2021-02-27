@@ -1,0 +1,70 @@
+---
+- hosts: all
+  become: true
+  vars_files:
+   - vars/default.yml
+ 
+  tasks:
+   - name: Install aptitude using apt
+     apt: name=aptitude state=latest update_cache=yes force_apt_get=yes
+ 
+   - name: Install required system packages
+     apt: name={{ item }} state=latest update_cache=yes
+     loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'gnupg','software-properties-common', 'python3-pip', 'virtualenv', 'python3-setuptools']
+ 
+   - name: Add Docker GPG apt Key
+     apt_key:
+       url: https://download.docker.com/linux/ubuntu/gpg
+       state: present
+ 
+   - name: Add Docker Repository
+     apt_repository:
+       repo: deb https://download.docker.com/linux/ubuntu bionic stable
+       state: present
+
+   - name: Install docker and its dependecies
+     apt: 
+      name: "{{ packages }}"
+      state: present
+      update_cache: yes
+     vars:
+       packages:
+       - docker-ce 
+       - docker-ce-cli 
+       - containerd.io
+     notify:
+       - docker status 
+  
+   - name: Add an apt signing key for Kubernetes
+     apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+   - name: Adding apt repository for Kubernetes
+     apt_repository:
+      repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+      state: present
+      filename: kubernetes.list
+
+   - name: Restart Docker
+     service: name=docker state=restarted
+
+   - name: Install Kubernetes binaries
+     apt: 
+       name: "{{ packages }}"
+       state: present
+       update_cache: yes
+     vars:
+       packages:
+         - kubelet 
+         - kubeadm 
+         - kubectl   
+   
+   - name: Disable swap
+     command: swapoff -a
+     when: ansible_swaptotal_mb > 0      
+
+
+
+
+
